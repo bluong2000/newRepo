@@ -132,12 +132,32 @@ int main (int argc,  char *argv[]) {
         //push();
         
     }
-    else if (strcmp("create", command) == 0) {
+    else if (strcmp("create", command) == 0) { 
 
-        char* retMes = "Successfuly created project";
+        char* retMes = "Successfuly created project";printf("\nin\n");
 
         if (create(newsockfd, proj) == -1) {
             retMes = "Error: project already exists in server's repository";
+        }
+
+        int n = write(newsockfd, retMes, strlen(retMes));
+
+        if (n < 0) {
+
+            fprintf(stderr, "Fatal Error: could not write to socket");
+            close(sockfd);
+            close(newsockfd);
+            exit(-1);
+        }   
+        
+        //printf("sending \"%s\" message size = %d\n", retMes, strlen(retMes));
+    }
+    else if (strcmp("destroy", command) == 0) {
+
+        char* retMes = "Successfuly deleted project";
+
+        if (destroy(proj) == -1) {
+            retMes = "Error: project does not exist in server repository";
         }
 
         int n = write(newsockfd, retMes, strlen(retMes));
@@ -148,15 +168,8 @@ int main (int argc,  char *argv[]) {
             close(sockfd);
             close(newsockfd);
             exit(-1);
-        }   
-        
-        //printf("sending \"%s\" message size = %d\n", retMes, strlen(retMes));
-    }
-    else if (strcmp("destroy", command) == 0) {
+        }  
 
-        
-
-        //destroy();
         
     }
     else if (strcmp("add", command) == 0) {
@@ -201,16 +214,7 @@ int main (int argc,  char *argv[]) {
     }
 
 
-
-
-    n = write(newsockfd, "I got your message", 18);
-    if (n < 0) {
-        fprintf(stderr, "Fatal Error: unable to write to socket\n");
-        exit(-1);
-    }
-
-
-
+    //printf("got here to close sockets\n");
     close(sockfd);
     close(newsockfd);
 

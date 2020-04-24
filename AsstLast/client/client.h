@@ -19,8 +19,25 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <openssl/opensslconf.h>
+#include <openssl/crypto.h>
+#include <openssl/sha.h>
+#include <openssl/opensslv.h>
+#include <time.h>
 
 
+void delay(int number_of_seconds) // change eventually
+{ 
+    // Converting time into milli_seconds 
+    int milli_seconds = 1000 * number_of_seconds; 
+  
+    // Storing start time 
+    clock_t start_time = clock(); 
+  
+    // looping till required time is not achieved 
+    while (clock() < start_time + milli_seconds) 
+        ; 
+} 
 
 /*
 void recPrac(char* f, char* huff, char* flag, code* codes, struct Node* nodes) { // dont parse '.' and '..' when recursing through the directories
@@ -108,8 +125,18 @@ void recPrac(char* f, char* huff, char* flag, code* codes, struct Node* nodes) {
 int getMessage(int sockfd) {
 
     int arrlen = 0;
-    while (arrlen == 0)                             // find more elegant solution
-       ioctl(sockfd, FIONREAD, &arrlen);
+    int c = 0;
+    while (arrlen == 0 && c != 20)  {                        // find more elegant solution
+       ioctl(sockfd, FIONREAD, &arrlen); // wait every 1 second for 10 seconds, after 10 seconds return error
+       delay(1);
+       c++;
+    }
+
+    if (c == 20 && arrlen == 0) {
+        fprintf(stderr, "Fatal Error: server unable to send data\n");
+        close(sockfd);
+        exit(-1);
+    }
 
     char buff[arrlen + 1];
     bzero(buff,arrlen + 1);
@@ -128,7 +155,7 @@ int getMessage(int sockfd) {
                      
     } while (status > 0 && readIn < arrlen);
 
-    printf("%s\n", buff);
+
 
     return 1;
 }
@@ -420,7 +447,70 @@ int create(char* proj) {
         exit(-1);
     }
 
-    getMessage(sockfd);
+
+    //read from socket and check what was read was not an error
+    int arrlen = 0;
+    int c = 0;
+    while (arrlen == 0 && c != 10)  {                        // find more elegant solution
+       ioctl(sockfd, FIONREAD, &arrlen); // wait every 1 second for 10 seconds, after 10 seconds return error
+       delay(1);
+       c++;
+    }
+
+    if (c == 10 && arrlen == 0) {
+        fprintf(stderr, "Fatal Error: server unable to send data\n");
+        close(sockfd);
+        exit(-1);
+    }
+
+    char buff[arrlen + 1];
+    bzero(buff,arrlen + 1);
+    buff[arrlen] = '\0';
+    int readIn = 0;
+    int status = 0;
+
+    do{  // reads buffer char by char
+            status = read(sockfd, buff+readIn, arrlen - readIn); 
+            if (status < 0 && readIn == 0) {
+                fprintf(stderr, "Fatal Error: could not read from socket\n");
+                close(sockfd);
+                exit(-1);
+            }
+            readIn += status;
+                     
+    } while (status > 0 && readIn < arrlen);
+
+//                                                         find out how to do a substring
+    if (strstr(buff, "Error") != NULL) {
+        printf("%s\n", buff);
+    }
+    else {
+        char manifest[2 + 9 + strlen(proj)];    //  length of "./" + ".manifest + length of proj"
+        strcpy(manifest, "./");
+        strcat(manifest, proj);
+        strcat(manifest, ".manifest");
+
+        int fd = open(manifest, O_RDWR ^ O_TRUNC | O_CREAT, 00600);
+        
+        int writeIn = 0;
+        int status = 0;
+        do{ 
+            status = write(fd, buff + writeIn, strlen(buff) - writeIn);
+
+            if (status < 0 && writeIn == 0) { 
+                fprintf(stderr, "Fatal Error: could not write to file\n");
+                close(fd);
+                close(sockfd);
+                exit(-1);
+            }
+            writeIn += status;
+                        
+        } while (status > 0 && writeIn < strlen(buff));
+
+        close(fd);
+
+        getMessage(sockfd);
+    }
 
     close(sockfd);
 
@@ -443,7 +533,7 @@ int destroy(char* proj) {
         exit(-1);
     }
 
-    //getMessage(sockfd);
+    getMessage(sockfd);
 
     close(sockfd);
 
